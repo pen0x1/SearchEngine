@@ -1,1 +1,1 @@
-# SearchEngine
+The SearchEngine project is a Rust-based application that serves as a powerful search engine platform. It primarily focuses on initializing the server and configuring routes to efficiently handle search queries and data indexing. This repository contains all the necessary code and documentation to set up and run the search engine, ensuring quick and accurate search results.
