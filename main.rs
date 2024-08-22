@@ -1,29 +1,15 @@
-use std::env;
-use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+// Pseudo Rust code - for illustrative purposes to explain the concept
 
-async fn greet() -> impl Responder {
-    HttpResponse::Ok().body("Hello, world!")
-}
+async fn fetch_user_data(user_ids: Vec<u32>) -> Result<Vec<UserData>, SomeError> {
+    // Imagine this function fetches user data in batches rather than individually to reduce calls
+    let batches = user_ids.chunks(10); // Example: batch size of 10
+    let mut all_data = Vec::new();
 
-fn config_routes(cfg: &mut web::ServiceConfig) {
-    cfg.service(
-        web::scope("/api")
-            .route("/greet", web::get().to(greet)),
-    );
-}
+    for batch in batches {
+        // Perform batch request to external service/API
+        let batch_data = external_api_batch_fetch(batch).await?;
+        all_data.extend(batch_data);
+    }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    dotenv::dotenv().ok();
-
-    let server_addr = env::var("SERVER_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".to_string());
-    
-    println!("Starting server at: {}", &server_addr);
-    HttpServer::new(|| {
-        App::new()
-            .configure(config_routes)
-    })
-    .bind(&server_addr)?
-    .run()
-    .await
+    Ok(all_data)
 }
