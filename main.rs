@@ -1,15 +1,19 @@
-// Pseudo Rust code - for illustrative purposes to explain the concept
+use std::collections::HashSet;
+use futures::future::try_join_all;
 
 async fn fetch_user_data(user_ids: Vec<u32>) -> Result<Vec<UserData>, SomeError> {
-    // Imagine this function fetches user data in batches rather than individually to reduce calls
-    let batches = user_ids.chunks(10); // Example: batch size of 10
-    let mut all_data = Vec::new();
+    let user_ids: HashSet<u32> = user_ids.into_iter().collect();
+    let futures = user_ids.into_iter().collect::<Vec<_>>().chunks(10).map(|batch| {
+        let batch = batch.to_vec(); 
+        async move { external_api_batch_fetch(&batch).await }
+    });
 
-    for batch in batches {
-        // Perform batch request to external service/API
-        let batch_data = external_api_batch_fetch(batch).await?;
-        all_data.extend(batch_data);
-    }
+    let results = try_join_all(futures).await?;
+    let all_data = results.into_iter().flat_map(|data| data.into_iter()).collect::<Vec<_>>();
 
     Ok(all_data)
+}
+
+async fn external_api_batch_fetch(batch: &[u32]) -> Result<Vec<UserData>, SomeError> {
+    unimplemented!()
 }
