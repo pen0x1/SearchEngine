@@ -3,36 +3,39 @@ use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 
-fn load_configuration() -> HashMap<String, String> {
-    dotenv::dotenv().ok();
+// Load environment configuration, specifically looking for a data path.
+fn load_env_configuration() -> HashMap<String, String> {
+    dotenv::dotenv().ok(); // Load .env file, if present.
     let mut config = HashMap::new();
 
-    if let Ok(data_path) = env::var("DATA_PATH") {
-        config.insert("DATA_PATH".to_string(), data_path);
+    if let Ok(data_directory_path) = env::var("DATA_PATH") {
+        config.insert("DATA_PATH".to_string(), data_directory_path);
     }
 
     config
 }
 
-fn tokenize(text: &str) -> Vec<String> {
+// Splits a string into lowercase words.
+fn split_into_tokens(text: &str) -> Vec<String> {
     text.split_whitespace()
         .map(|word| word.to_lowercase())
         .collect()
 }
 
-fn index_document(data_path: &str, doc_id: &str) -> io::Result<HashMap<String, Vec<String>>> {
-    let file_path = format!("{}/{}.txt", data_path, doc_id);
-    let file = File::open(file_path)?;
+// Creates an inverted index for a single document located at the specified path.
+fn create_document_index(data_directory_path: &str, document_id: &str) -> io::Result<HashMap<String, Vec<String>>> {
+    let document_file_path = format!("{}/{}.txt", data_directory_path, document_id);
+    let file = File::open(document_file_path)?;
     let reader = BufReader::new(file);
 
     let mut index = HashMap::new();
     
     for line in reader.lines() {
         let line = line?;
-        let tokens = tokenize(&line);
+        let tokens = split_into_tokens(&line);
 
         for token in tokens {
-            index.entry(token).or_insert_with(Vec::new).push(doc_id.to_string());
+            index.entry(token).or_insert_with(Vec::new).push(document_id.to_string());
         }
     }
 
@@ -40,13 +43,13 @@ fn index_document(data_path: &str, doc_id: &str) -> io::Result<HashMap<String, V
 }
 
 fn main() -> io::Result<()> {
-    let config = load_configuration();
+    let config = load_env_configuration();
     let data_path = config.get("DATA_PATH").expect("DATA_PATH not configured");
 
-    let indexed_data = index_document(data_path, "example_doc")?;
+    let document_index = create_document_index(data_path, "example_doc")?;
 
-    for (token, doc_ids) in indexed_data {
-        println!("Token: {}, Document IDs: {:?}", token, doc_ids);
+    for (token, document_ids) in document_index {
+        println!("Token: {}, Document IDs: {:?}", token, document_ids);
     }
 
     Ok(())
