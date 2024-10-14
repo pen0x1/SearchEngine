@@ -1,10 +1,11 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 
 fn load_env_configuration() -> HashMap<String, String> {
-    dotenv::dotenv().ok(); 
+    dotenv::dotenv().ok();
     let mut config = HashMap::new();
 
     if let Ok(data_directory_path) = env::var("DATA_PATH") {
@@ -14,9 +15,9 @@ fn load_env_configuration() -> HashMap<String, String> {
     config
 }
 
-fn split_into_tokens(text: &str) -> Vec<String> {
+fn split_into_tokens<'a>(text: &'a str) -> Vec<Cow<'a, str>> {
     text.split_whitespace()
-        .map(|word| word.to_lowercase())
+        .map(|word| Cow::Borrowed(word))
         .collect()
 }
 
@@ -25,14 +26,19 @@ fn create_document_index(data_directory_path: &str, document_id: &str) -> io::Re
     let file = File::open(document_file_path)?;
     let reader = BufReader::new(file);
 
-    let mut index = HashMap::new();
-    
-    for line in reader.lines() {
-        let line = line?;
+    // Assuming an average document might contain up to 100 unique tokens for initial hashmap capacity
+    let mut index = HashMap::with_capacity(100);
+
+    let document_id_owned = document_id.to_owned();
+
+    for line_result in reader.lines() {
+        let line = line_result?;
         let tokens = split_into_tokens(&line);
 
-        for token in tokens {
-            index.entry(token).or_insert_with(Vec::new).push(document_id.to_string());
+        for token_cow in tokens {
+            index.entry(token_cow.into_owned())
+                 .or_insert_with(Vec::new)
+                 .push(document_id_owned.clone());
         }
     }
 
@@ -48,6 +54,6 @@ fn main() -> io::Result<()> {
     for (token, document_ids) in document_index {
         println!("Token: {}, Document IDs: {:?}", token, document_ids);
     }
-
+    
     Ok(())
 }
