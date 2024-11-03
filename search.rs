@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 use std::env;
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
 
 const DEFAULT_INDEX_FILE: &str = "data/index.json";
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, Clone)]
 struct Document {
     id: u32,
     content: String,
 }
+
+static SEARCH_CACHE: Lazy<Mutex<HashMap<String, Vec<Document>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn main() {
     dotenv::dotenv().ok();
@@ -16,7 +20,7 @@ fn main() {
     let index_file = env::var("INDEX_FILE").unwrap_or_else(|_| String::from(DEFAULT_INDEX_FILE));
     let documents = load_documents(&index_file).expect("Failed to load documents");
 
-    let search_results = search_documents(&query, documents);
+    let search_results = search_documents_cached(&query, &documents);
     println!("{:#?}", search_results);
 }
 
@@ -26,9 +30,17 @@ fn load_documents(file_path: &str) -> Result<Vec<Document>, Box<dyn std::error::
     Ok(documents)
 }
 
-fn search_documents(query: &str, documents: Vec<Document>) -> Vec<Document> {
-    documents
-        .into_iter()
-        .filter(|doc| doc.content.to_lowercase().contains(&query.to_lowercase()))
-        .collect()
+fn search_documents_cached(query: &str, documents: &[Document]) -> Vec<Document> {
+    let mut cache = SEARCH_CACHE.lock().unwrap();
+    if let Some(results) = cache.get(query) {
+        results.clone()
+    } else {
+        let results = documents
+            .iter()
+            .filter(|doc| doc.content.to_lowercase().contains(&query.to_lowercase()))
+            .cloned()
+            .collect::<Vec<Document>>();
+        cache.insert(query.to_string(), results.clone());
+        results
+    }
 }
