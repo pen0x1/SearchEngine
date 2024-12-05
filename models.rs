@@ -32,7 +32,7 @@ impl Index {
         }
     }
 
-    fn add_document(&mut self, doc: Document) {
+    fn add_document(&mut self, doc: Document) -> Result<(), String> {
         let doc_id = doc.id.clone();
         let text = doc.title + " " + &doc.content;
         for word in text.split_whitespace() {
@@ -41,9 +41,11 @@ impl Index {
                 .or_default()
                 .push(doc_id.clone());
         }
+        
+        Ok(())
     }
 
-    fn search(&self, query: &str) -> Vec<SearchResult> {
+    fn search(&self, query: &str) -> Result<Vec<SearchResult>, String> {
         let mut results: Vec<SearchResult> = Vec::new();
         for word in query.split_whitespace() {
             if let Some(doc_ids) = self.inverted_index.get(&word.to_lowercase()) {
@@ -56,8 +58,8 @@ impl Index {
                 }
             }
         }
-
-        results
+        
+        Ok(results)
     }
 }
 
@@ -72,8 +74,13 @@ fn main() {
         metadata: HashMap::new(),
     };
 
-    index.add_document(doc1);
+    if let Err(e) = index.add_document(doc1) {
+        println!("Failed to add document: {}", e);
+        return;
+    }
 
-    let search_results = index.search("quick fox");
-    println!("{:?}", search_results);
+    match index.search("quick fox") {
+        Ok(search_results) => println!("{:?}", search_results),
+        Err(e) => println!("Search failed: {}", e),
+    }
 }
